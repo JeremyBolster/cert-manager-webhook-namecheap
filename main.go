@@ -9,16 +9,16 @@ import (
 	"os"
 	"strings"
 
-	extapi "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extapi "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/jetstack/cert-manager/pkg/acme/webhook/apis/acme/v1alpha1"
-	"github.com/jetstack/cert-manager/pkg/acme/webhook/cmd"
-	cmmeta "github.com/jetstack/cert-manager/pkg/apis/meta/v1"
-	"github.com/jetstack/cert-manager/pkg/issuer/acme/dns/util"
+	"github.com/cert-manager/cert-manager/pkg/acme/webhook/apis/acme/v1alpha1"
+	"github.com/cert-manager/cert-manager/pkg/acme/webhook/cmd"
+	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
+	"github.com/cert-manager/cert-manager/pkg/issuer/acme/dns/util"
 
-	namecheap "github.com/namecheap/go-namecheap-sdk/v2/namecheap"
+	"github.com/namecheap/go-namecheap-sdk/v2/namecheap"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -66,7 +66,7 @@ type (
 
 	// namecheapDNSProviderSolver implements the provider-specific logic needed to
 	// 'present' an ACME challenge TXT record for your own DNS provider.
-	// To do so, it must implement the `github.com/jetstack/cert-manager/pkg/acme/webhook.Solver`
+	// To do so, it must implement the `github.com/cert-manager/cert-manager/pkg/acme/webhook.Solver`
 	// interface.
 	namecheapDNSProviderSolver struct {
 		// If a Kubernetes 'clientset' is needed, you must:
@@ -122,7 +122,7 @@ func (c *namecheapDNSProviderSolver) Name() string {
 // cert-manager itself will later perform a self check to ensure that the
 // solver has correctly configured the DNS provider.
 func (c *namecheapDNSProviderSolver) Present(ch *v1alpha1.ChallengeRequest) error {
-	cfg, err := loadConfig((*extapi.JSON)(ch.Config))
+	cfg, err := loadConfig(ch.Config)
 	if err != nil {
 		return err
 	}
@@ -159,7 +159,7 @@ func (c *namecheapDNSProviderSolver) Present(ch *v1alpha1.ChallengeRequest) erro
 // This is in order to facilitate multiple DNS validations for the same domain
 // concurrently.
 func (c *namecheapDNSProviderSolver) CleanUp(ch *v1alpha1.ChallengeRequest) error {
-	cfg, err := loadConfig((*extapi.JSON)(ch.Config))
+	cfg, err := loadConfig(ch.Config)
 	if err != nil {
 		return err
 	}
@@ -246,15 +246,15 @@ func (c *namecheapDNSProviderSolver) getSecret(ref *cmmeta.SecretKeySelector, na
 
 func (c *namecheapDNSProviderSolver) setNamecheapClient(ch *v1alpha1.ChallengeRequest, cfg namecheapDNSProviderConfig) error {
 	if cfg.APIKeySecretRef == nil {
-		return errors.New("Secret field 'apiKeySecretRef' could not be located. Check Spelling.")
+		return errors.New("secret field 'apiKeySecretRef' could not be located. Check spelling")
 	}
 	apiKey, err := c.getSecret(cfg.APIKeySecretRef, ch.ResourceNamespace)
 	if err != nil {
 		return err
 	}
-	
+
 	if cfg.APIUserSecretRef == nil {
-		return errors.New("Secret field 'apiUserSecretRef' could not be located. Check Spelling.")
+		return errors.New("secret field 'apiUserSecretRef' could not be located. Check spelling")
 	}
 	apiUser, err := c.getSecret(cfg.APIUserSecretRef, ch.ResourceNamespace)
 	if err != nil {
@@ -403,7 +403,12 @@ func getOutboundIP() (*net.IP, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer func(conn net.Conn) {
+		err := conn.Close()
+		if err != nil {
+
+		}
+	}(conn)
 
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 
